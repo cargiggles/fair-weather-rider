@@ -1,4 +1,4 @@
-# FairWeather Rider Lambda v1.1
+# Fair Weather Rider Lambda v1.1
 # Andrew Cargill
 # May 11, 2018
 
