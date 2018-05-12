@@ -12,9 +12,9 @@ import urllib2
 API_KEY = os.environ['API_KEY']
 PHONE_NUMBER = os.environ['PHONE_NUMBER']
 ZIP = os.environ['ZIP']
+LOWEST_ACCEPTABLE_TEMP = int(os.environ['LOWEST_ACCEPTABLE_TEMP'])
+CHANCE_RAIN = int(os.environ['CHANCE_RAIN'])
 
-LOWEST_ACCEPTABLE_TEMP = 40
-CHANCE_RAIN = 15
 BIKE_TO_WORK = True
 
 def lambda_handler(event, context):
