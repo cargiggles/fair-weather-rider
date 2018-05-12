@@ -1,4 +1,4 @@
-# Fair Weather Rider Lambda v1.1
+# Fair Weather Rider Lambda v1.2
 # Andrew Cargill
 # May 11, 2018
 
@@ -11,16 +11,14 @@ import urllib2
 
 API_KEY = os.environ['API_KEY']
 PHONE_NUMBER = os.environ['PHONE_NUMBER']
-
-CITY = "seattle"
-STATE = "wa"
+ZIP = os.environ['ZIP']
 
 LOWEST_ACCEPTABLE_TEMP = 40
 CHANCE_RAIN = 15
 BIKE_TO_WORK = True
 
 def lambda_handler(event, context):
-    url = "http://api.wunderground.com/api/" + API_KEY + "/hourly/q/" + STATE + "/" + CITY + ".json"
+    url = "http://api.wunderground.com/api/" + API_KEY + "/hourly/q/" + ZIP + ".json"
     response = urllib2.urlopen(url) # Calling Wunderground
     weather = json.load(response) # .json is read and put into the "weather" dictionary object
 
