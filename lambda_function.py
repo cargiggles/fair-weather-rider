@@ -63,3 +63,4 @@ def lambda_handler(event, context):
     	print time.strftime("%a %b %d") + "\nRide your bike!\nSMS Sent!"
     else:
     	print "It's too cold and/or rainy, bus it."
+ 
