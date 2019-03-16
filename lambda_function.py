@@ -44,11 +44,6 @@ class BikeObject(object):
         if self.precip > lowest_acceptable_precip or self.temp < lowest_acceptable_temp:
             bike_to_work = False
 
-def get_today_date_time():
-    """ Returns Date Time Object Representing Today With Local Time Zone Offset """
-    today_date_time = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(local_time_zone))
-    return today_date_time
-
 def dark_sky_hourly_forecast():
     """ Calls Dark Sky API Using 'darksky' Module And Returns Forecast Object """
     key = dark_sky_api_key
@@ -63,6 +58,11 @@ def get_local_date_time(hour):
     local_time_zone_object = timezone(local_time_zone)
     local_date_time_object = utc_date_time.astimezone(local_time_zone_object)
     return local_date_time_object
+
+def get_today_date_time():
+    """ Returns Date Time Object Representing Today With Local Time Zone Offset """
+    today_date_time = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(local_time_zone))
+    return today_date_time
 
 def send_sns_sms(message):
     """ Accepts String And Sends SMS To Phone Number """
