@@ -44,6 +44,11 @@ class BikeObject(object):
         if self.precip > lowest_acceptable_precip or self.temp < lowest_acceptable_temp:
             bike_to_work = False
 
+def get_today_date_time():
+    """ Returns Date Time Object Representing Today With Local Time Zone Offset """
+    today_date_time = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(local_time_zone))
+    return today_date_time
+
 def dark_sky_hourly_forecast():
     """ Calls Dark Sky API Using 'darksky' Module And Returns Forecast Object """
     key = dark_sky_api_key
@@ -97,6 +102,9 @@ def lambda_handler(event, context):
     for bike in bikes:
         bike.bike_logic()
         print bike
+
+    # Get Date Time Object Representing Today
+    today_date_time = get_today_date_time()
 
     if bike_to_work == True:
         send_sns_sms("Ride Your Bike!" + " " + "(" + today_date_time.strftime("%A") + ")")
