@@ -1,29 +1,33 @@
-# Fair Weather Rider Lambda v3.0
-# Andrew Cargill
-# 2019-03-15 - Re-wrote To Use Dark Sky API And pytz
-
-from botocore.vendored import requests
-from darksky import forecast
-from datetime import datetime, timedelta
-from pytz import timezone
-import boto3
-import json
+"""
+Fair Weather Rider Lambda v4.0
+Andrew Cargill
+2023-10-21 - Rewritten To Use Open Weather Map And Twilio
+"""
+import datetime as dt
+from datetime import datetime
 import os
+from pyowm import OWM
 import pytz
+from pytz import timezone
+from twilio.rest import Client
+from twilio.base.exceptions import TwilioRestException
 
 # API Keys
-dark_sky_api_key = os.environ['dark_sky_api_key']
+open_weather_map_api_key = os.environ['open_weather_map_api_key']
+twilio_account_sid = os.environ['twilio_account_sid']
+twilio_auth_token = os.environ['twilio_auth_token']
+twilio_messaging_service_sid = os.environ['twilio_messaging_service_sid']
 
 # Constants
 lat = float(os.environ['lat'])
-lng = float(os.environ['lng'])
+lon = float(os.environ['lon'])
 
 # User Preferences
-lowest_acceptable_precip = int(os.environ['lowest_acceptable_precip'])
-lowest_acceptable_temp = int(os.environ['lowest_acceptable_temp'])
-phone_number = os.environ['phone_number']
+lowest_acceptable_precip = float(os.environ['lowest_acceptable_precip'])
+lowest_acceptable_temp = float(os.environ['lowest_acceptable_temp'])
+to_phone = os.environ['to_phone']
 
-# Local Time Zone To Be Populated By Dark Sky API Call
+# Local Time Zone To Be Populated By Open Weather Map API Call
 local_time_zone = "" # America/Los_Angeles
 
 bike_to_work = True
@@ -32,7 +36,7 @@ class BikeObject(object):
     """ An Hour Of The Day """
     def __init__(self, hour, precip, temp):
         self.hour = int(hour)
-        self.precip = float(precip) # chance of precipitation
+        self.precip = float(precip)
         self.temp = float(temp)
 
     def __str__(self):
@@ -44,12 +48,14 @@ class BikeObject(object):
         if self.precip > lowest_acceptable_precip or self.temp < lowest_acceptable_temp:
             bike_to_work = False
 
-def dark_sky_hourly_forecast():
-    """ Calls Dark Sky API Using 'darksky' Module And Returns Forecast Object """
-    key = dark_sky_api_key
-    exclude = "currently,minutely,daily,flags"
-    dark_sky_hourly_forecast = forecast(key, lat, lng, exclude = exclude)
-    return dark_sky_hourly_forecast
+def open_weather_map_hourly_forecast(): # Replace With PyOWM
+    """ Calls Open Weather Map API Using 'PyOWM' Module And Returns Forecast Object """
+    exclude = "minutely,daily,alerts"
+    units = "imperial"
+    open_weather_map = OWM(open_weather_map_api_key)
+    weather_manager = open_weather_map.weather_manager()
+    forecast = weather_manager.one_call(lat=lat, lon=lon, exclude=exclude, units=units)
+    return forecast
 
 def get_local_date_time(hour):
     """ Accepts Unix Time Integer And Returns Date Time Object Converted To Local Time Zone """
@@ -64,30 +70,40 @@ def get_today_date_time():
     today_date_time = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(local_time_zone))
     return today_date_time
 
-def send_sns_sms(message):
-    """ Accepts String And Sends SMS To Phone Number """
-    sns = boto3.client('sns')
-    print sns.publish(PhoneNumber = phone_number, Message = message)
-    # print both executes and records status codes to CloudWatch
+def send_sms(message): # Will Need to Update To Use Twilio
+    """ Accepts String And Sends SMS To Phone Number At 6 AM Same Day"""
+    client = Client(twilio_account_sid, twilio_auth_token)
+    send_at = dt.datetime.today().astimezone(timezone(local_time_zone)).replace(hour=6, minute=0, second=0, microsecond=0).isoformat()
+    try:
+        message = client.messages.create(
+            to=to_phone,
+            from_=twilio_messaging_service_sid,
+            body=message,
+            schedule_type='fixed',
+            send_at=send_at)
+        print("SMS Message SID: " + message.sid)
+    except TwilioRestException as error:
+        print("Twilio Error: ")
+        print(error)
 
 def lambda_handler(event, context):
     global local_time_zone # Allows Change Made To "local_time_zone" To Be Viewable In All Other Functions
-    
-    # Dark Sky Hourly API Call
-    full_forecast = dark_sky_hourly_forecast()
+
+    # Open Weather Map Hourly API Call
+    forecast = open_weather_map_hourly_forecast()
 
     # Set local_time_zone String
-    local_time_zone = full_forecast.timezone
+    local_time_zone = forecast.timezone
 
     # Slice Out Array Of Forecasts For Next 24 Hours
-    hourly_forecasts = full_forecast.hourly[:24]
+    hourly_forecasts = forecast.forecast_hourly[:24]
 
     # Make List Of Commute Forecast Objects
-    commute_times = [8, 9, 17, 18, 19] # Hours During Which I'd Conceivibly Be Biking
+    commute_times = [7, 8, 9, 17, 18, 19] # Hours During Which I'd Conceivibly Be Biking
     commute_forecasts = []
 
     for hourly_forecast in hourly_forecasts:
-        local_date_time = get_local_date_time(hourly_forecast.time)
+        local_date_time = get_local_date_time(hourly_forecast.reference_time())
 
         if local_date_time.hour in commute_times:
             commute_forecasts.append(hourly_forecast)
@@ -95,19 +111,19 @@ def lambda_handler(event, context):
     # Make List of Bike Objects - Representing Each Potential Hour Of Commute With Bike Logic
     bikes = []
     for commute_forecast in commute_forecasts:
-        bike = BikeObject(get_local_date_time(commute_forecast.time).hour, commute_forecast.precipProbability, commute_forecast.temperature)
+        bike = BikeObject(get_local_date_time(commute_forecast.reference_time()).hour, commute_forecast.precipitation_probability, commute_forecast.temperature()['temp'])
         bikes.append(bike)
 
     # Invoke Each Bike Object's 'bike_logic()' Function To Test Whether To Toggle 'bike_to_work' False
     for bike in bikes:
         bike.bike_logic()
-        print bike
+        print(bike)
 
     # Get Date Time Object Representing Today
     today_date_time = get_today_date_time()
 
-    if bike_to_work == True:
-        send_sns_sms("Ride Your Bike!" + " " + "(" + today_date_time.strftime("%A") + ")")
-        print today_date_time.strftime("%a %b %d %Y") + "\nRide your bike!\nSMS Sent!"
+    if bike_to_work:
+        send_sms("Ride Your Bike!" + " " + "(" + today_date_time.strftime("%A") + ")")
+        print(today_date_time.strftime("%a %b %d %Y") + "\nRide your bike!\nSMS Sent!")
     else:
-        print "It's too cold and/or rainy, bus it."
+        print("It's too cold and/or rainy, work from home.")
