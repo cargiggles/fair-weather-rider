@@ -1,5 +1,5 @@
 """
-Fair Weather Rider Lambda v4.0
+Fair Weather Rider Lambda v4.1
 Andrew Cargill
 2023-10-21 - Rewritten To Use Open Weather Map And Twilio
 """
@@ -40,7 +40,7 @@ class BikeObject(object):
         self.temp = float(temp)
 
     def __str__(self):
-        rep = str(self.hour) + ":00\n" + str(self.precip) + "% chance rain\n" + str(self.temp) + " F\n"
+        rep = str(self.hour) + ":00\n" + str(self.precip * 100) + "% chance rain\n" + str(self.temp) + " F\n"
         return rep
 
     def bike_logic(self):
