@@ -4,7 +4,6 @@ Andrew Cargill
 2023-10-21 - Rewritten To Use Open Weather Map And Twilio
 """
 import datetime as dt
-from datetime import datetime
 import os
 from pyowm import OWM
 import pytz
@@ -60,14 +59,14 @@ def open_weather_map_hourly_forecast(): # Replace With PyOWM
 def get_local_date_time(hour):
     """ Accepts Unix Time Integer And Returns Date Time Object Converted To Local Time Zone """
     utc = pytz.utc
-    utc_date_time = utc.localize(datetime.utcfromtimestamp(hour))
+    utc_date_time = utc.localize(dt.datetime.utcfromtimestamp(hour))
     local_time_zone_object = timezone(local_time_zone)
     local_date_time_object = utc_date_time.astimezone(local_time_zone_object)
     return local_date_time_object
 
 def get_today_date_time():
     """ Returns Date Time Object Representing Today With Local Time Zone Offset """
-    today_date_time = datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone(local_time_zone))
+    today_date_time = dt.datetime.now(dt.timezone.utc).astimezone(pytz.timezone(local_time_zone))
     return today_date_time
 
 def send_sms(message): # Will Need to Update To Use Twilio
